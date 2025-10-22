@@ -141,7 +141,7 @@ export default function Gallery() {
               onClick={() => toggleSelect(img._id)}
             >
               <img
-                src={`http://localhost:5000${img.filePath}`}
+                src={`https://jr-school-67nt.onrender.com${img.filePath}`}
                 alt={img.title}
                 className="w-full h-auto object-cover"
               />
