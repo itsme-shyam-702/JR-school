@@ -109,20 +109,20 @@ export default function Gallery() {
                 onClick={handleDeleteSelected}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md shadow transition"
               >
-                🗑 Delete ({selected.length})
+                 Delete ({selected.length})
               </button>
             )}
             <button
               onClick={() => setShowForm(true)}
               className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md shadow transition"
             >
-              ➕ Add Image
+               Add Image
             </button>
             <button
               onClick={() => setShowDeleted((s) => !s)}
               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow transition"
             >
-              🕓 {showDeleted ? "Hide" : "Recently Deleted"}
+               {showDeleted ? "Hide" : "Recently Deleted"}
             </button>
           </div>
         </div>
@@ -156,7 +156,7 @@ export default function Gallery() {
                 }}
                 className="absolute top-1 right-1 bg-black/50 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition"
               >
-                ✖
+                
               </button>
             </div>
           ))}
@@ -230,7 +230,7 @@ export default function Gallery() {
             {recentlyDeleted.map((img) => (
               <div key={img._id} className="relative flex-shrink-0 w-28 h-20">
                 <img
-                  src={`http://localhost:5000${img.filePath}`}
+                  src={`https://jr-school-67nt.onrender.com${img.filePath}`}
                   alt={img.title}
                   className="w-full h-full object-cover border"
                 />

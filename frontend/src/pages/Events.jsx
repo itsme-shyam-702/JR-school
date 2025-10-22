@@ -139,13 +139,13 @@ export default function Events() {
               onClick={() => setShowForm(true)}
               className="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-md shadow transition"
             >
-              ➕ Add Event
+               Add Event
             </button>
             <button
               onClick={() => setShowDeleted((s) => !s)}
               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md shadow transition"
             >
-              🕓 {showDeleted ? "Hide" : "Recently Deleted"}
+               {showDeleted ? "Hide" : "Recently Deleted"}
             </button>
           </div>
         </div>
