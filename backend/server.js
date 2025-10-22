@@ -29,17 +29,17 @@ app.use("/api/gallery", galleryRoutes);
 app.use("/api/events", eventRoutes);
 app.use("/api/contact", contactRoutes);
 
-// ✅ Serve frontend (for Render or production)
+// Serve frontend in production
 if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/build");
   app.use(express.static(frontendPath));
 
-  // ✅ This catch-all route fixes refresh "Not Found"
+  // Catch-all route for frontend
   app.get("*", (req, res) => {
     res.sendFile(path.resolve(frontendPath, "index.html"));
   });
 } else {
-  // Optional test route for development
+  // Simple test route in development
   app.get("/", (req, res) => res.send("Server is running"));
 }
 
