@@ -156,7 +156,7 @@ export default function Gallery() {
                 }}
                 className="absolute top-1 right-1 bg-black/50 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition"
               >
-                
+                ✖
               </button>
             </div>
           ))}
