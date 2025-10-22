@@ -1,13 +1,14 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import connectDB from "./config/db.js";
 import eventRoutes from "./routes/eventRoutes.js";
 import galleryRoutes from "./routes/gallery.js";
 import admissionRoutes from "./routes/admissions.js";
 import contactRoutes from "./routes/contactRoutes.js";
-import path from "path";
-import { fileURLToPath } from "url";
 
 dotenv.config();
 connectDB();
@@ -18,12 +19,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Static uploads
+// Static path for uploads
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// API routes
+// API Routes
 app.use("/api/admission", admissionRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/events", eventRoutes);
@@ -34,12 +35,12 @@ if (process.env.NODE_ENV === "production") {
   const frontendBuildPath = path.join(__dirname, "../frontend/build");
   app.use(express.static(frontendBuildPath));
 
-  // ✅ Fixed wildcard route: use a function instead of inline arrow
-  app.get("*", function (_req, res) {
+  // Regex-based catch-all route to fix refresh issues
+  app.get(/.*/, function (_req, res) {
     res.sendFile(path.join(frontendBuildPath, "index.html"));
   });
 } else {
-  // Dev test route
+  // Test route for development
   app.get("/", (_req, res) => res.send("Server is running"));
 }
 
