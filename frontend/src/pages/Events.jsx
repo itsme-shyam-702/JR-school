@@ -173,7 +173,7 @@ export default function Events() {
                 <div className="h-40 bg-gray-100 relative">
                   {isImage && ev.filePath ? (
                     <img
-                      src={`http://localhost:5000${ev.filePath}`}
+                      src={`https://jr-school-67nt.onrender.com${ev.filePath}`}
                       alt={ev.title}
                       className="w-full h-full object-cover"
                     />
@@ -199,7 +199,7 @@ export default function Events() {
                   </p>
                 </div>
 
-                <button
+                {/* <button
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteSingle(ev._id);
@@ -207,7 +207,7 @@ export default function Events() {
                   className="absolute top-2 right-2 bg-black/50 hover:bg-red-600 text-white text-xs px-2 py-1 rounded transition"
                 >
                   ✖
-                </button>
+                </button> */}
               </div>
             );
           })}
@@ -287,7 +287,7 @@ export default function Events() {
               <div key={ev._id} className="relative flex-shrink-0 w-28 h-20">
                 {ev.filePath && ev.fileType === "image" ? (
                   <img
-                    src={`http://localhost:5000${ev.filePath}`}
+                    src={`https://jr-school-67nt.onrender.com${ev.filePath}`}
                     alt={ev.title}
                     className="w-full h-full object-cover border"
                   />
