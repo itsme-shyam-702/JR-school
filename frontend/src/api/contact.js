@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/contact";
+const API_URL = "https://jr-school-67nt.onrender.com/api/contact";
 
 const api = {
   sendMessage: (data) => axios.post(API_URL, data),

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:5000/api/gallery"; // adjust if your server uses another port
+const API_URL = "https://jr-school-67nt.onrender.com/api/gallery"; // adjust if your server uses another port
 
 const api = {
   getAll: () => axios.get(API_URL),
