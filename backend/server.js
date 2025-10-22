@@ -18,12 +18,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Static path for uploads
+// Static uploads
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// API Routes
+// API routes
 app.use("/api/admission", admissionRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/events", eventRoutes);
@@ -31,16 +31,16 @@ app.use("/api/contact", contactRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === "production") {
-  const frontendPath = path.join(__dirname, "../frontend/build");
-  app.use(express.static(frontendPath));
+  const frontendBuildPath = path.join(__dirname, "../frontend/build");
+  app.use(express.static(frontendBuildPath));
 
-  // Catch-all route for frontend
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(frontendPath, "index.html"));
+  // ✅ Fixed wildcard route: use a function instead of inline arrow
+  app.get("*", function (_req, res) {
+    res.sendFile(path.join(frontendBuildPath, "index.html"));
   });
 } else {
-  // Simple test route in development
-  app.get("/", (req, res) => res.send("Server is running"));
+  // Dev test route
+  app.get("/", (_req, res) => res.send("Server is running"));
 }
 
 // Start server
