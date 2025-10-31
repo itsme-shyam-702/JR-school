@@ -1,5 +1,6 @@
 import { useState } from "react";
-import api from "../api/admission"; // corrected import
+import Swal from "sweetalert2";
+import api from "../api/admission";
 
 function Admissions() {
   const [formData, setFormData] = useState({
@@ -29,8 +30,19 @@ function Admissions() {
     try {
       setStatus("Submitting...");
       const res = await api.submitAdmission(formData);
+
       if (res.status === 200) {
         setStatus("Admission submitted successfully!");
+
+        // ✅ SweetAlert2 success popup
+        Swal.fire({
+          title: "Success!",
+          text: "Admission submitted successfully!",
+          icon: "success",
+          confirmButtonColor: "#2563eb", // blue
+        });
+
+        // Reset form
         setFormData({
           name: "",
           selectedClass: "",
@@ -41,10 +53,22 @@ function Admissions() {
         });
       } else {
         setStatus("Failed to submit. Try again.");
+        Swal.fire({
+          title: "Error!",
+          text: "Failed to submit. Try again.",
+          icon: "error",
+          confirmButtonColor: "#ef4444", // red
+        });
       }
     } catch (err) {
       console.error(err);
       setStatus("Error submitting form. Please try later.");
+      Swal.fire({
+        title: "Error!",
+        text: "Something went wrong. Please try again later.",
+        icon: "error",
+        confirmButtonColor: "#ef4444",
+      });
     }
   };
 

@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import api from "../api/contact";
-import { MoreVertical, FolderMinus, Trash2, ArrowLeft, RotateCw, XCircle } from "lucide-react";
+import Swal from "sweetalert2";
+import {
+  MoreVertical,
+  FolderMinus,
+  Trash2,
+  ArrowLeft,
+  RotateCw,
+  XCircle,
+  MailX,
+} from "lucide-react";
 
-function InboxDashboard() {
+function ContactDashboard() {
   const [messages, setMessages] = useState([]);
   const [selectedMessage, setSelectedMessage] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -15,18 +24,21 @@ function InboxDashboard() {
     const fetchMessages = async () => {
       try {
         const res = await api.getMessages();
-        const msgs = res.data.map((m) => ({
-          ...m,
-          read: JSON.parse(localStorage.getItem(`read-${m._id}`)) || false,
-          deleted: m.deleted || false,
-          new: !JSON.parse(localStorage.getItem(`read-${m._id}`)),
-        }));
-
+        const msgs = res.data.map((m) => {
+          const read = JSON.parse(localStorage.getItem(`read-${m._id}`)) || false;
+          return {
+            ...m,
+            read,
+            deleted: m.deleted || false,
+            new: !read,
+            unread: !read,
+          };
+        });
         msgs.sort((a, b) => {
-          if (a.read === b.read) return new Date(b.createdAt) - new Date(a.createdAt);
+          if (a.read === b.read)
+            return new Date(b.createdAt) - new Date(a.createdAt);
           return a.read ? 1 : -1;
         });
-
         setMessages(msgs);
       } catch (err) {
         console.error(err);
@@ -46,10 +58,22 @@ function InboxDashboard() {
     setSelectedMessage(msg);
     setMessages((prev) =>
       prev.map((m) =>
-        m._id === msg._id ? { ...m, read: true, new: false } : m
+        m._id === msg._id
+          ? { ...m, read: true, new: false, unread: false }
+          : m
       )
     );
     localStorage.setItem(`read-${msg._id}`, true);
+  };
+
+  const markAsUnread = (id) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._id === id ? { ...m, read: false, unread: true, new: true } : m
+      )
+    );
+    localStorage.setItem(`read-${id}`, false);
+    setSelectedMessage(null);
   };
 
   const toggleSelect = (id) => {
@@ -58,9 +82,17 @@ function InboxDashboard() {
     );
   };
 
-  // Soft delete a single message
+  // Soft delete single
   const deleteSingle = async () => {
     if (!selectedMessage) return;
+    const confirm = await Swal.fire({
+      title: "Move to Trash?",
+      text: "This message will be moved to trash.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, move it",
+    });
+    if (!confirm.isConfirmed) return;
     try {
       await api.softDeleteMessage(selectedMessage._id);
       setMessages((prev) =>
@@ -69,78 +101,124 @@ function InboxDashboard() {
         )
       );
       setSelectedMessage(null);
+      Swal.fire("Moved!", "Message moved to trash.", "success");
     } catch (err) {
-      console.error("Failed to delete message:", err);
+      console.error(err);
     }
   };
 
-  // Restore a single message
+  // Restore single
   const restoreSingle = async (id) => {
     try {
       await api.restoreMessage(id);
       setMessages((prev) =>
         prev.map((m) => (m._id === id ? { ...m, deleted: false } : m))
       );
+      Swal.fire("Restored!", "Message has been restored.", "success");
     } catch (err) {
-      console.error("Failed to restore message:", err);
+      console.error(err);
     }
   };
 
-  // Permanently delete a message
+  // Permanently delete one
   const permanentDelete = async (id) => {
+    const confirm = await Swal.fire({
+      title: "Delete permanently?",
+      text: "This cannot be undone!",
+      icon: "error",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+    });
+    if (!confirm.isConfirmed) return;
     try {
       await api.deleteMessage(id);
       setMessages((prev) => prev.filter((m) => m._id !== id));
       if (selectedMessage?._id === id) setSelectedMessage(null);
+      Swal.fire("Deleted!", "Message permanently deleted.", "success");
     } catch (err) {
-      console.error("Failed to permanently delete message:", err);
+      console.error(err);
     }
   };
 
-  // Delete multiple selected messages (soft delete)
+  // Multi actions
   const deleteSelected = async () => {
+    const confirm = await Swal.fire({
+      title: "Move selected to Trash?",
+      text: `${selectedIds.length} message(s) will be moved.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, move",
+    });
+    if (!confirm.isConfirmed) return;
     try {
       await Promise.all(selectedIds.map((id) => api.softDeleteMessage(id)));
       setMessages((prev) =>
-        prev.map((m) => (selectedIds.includes(m._id) ? { ...m, deleted: true } : m))
+        prev.map((m) =>
+          selectedIds.includes(m._id) ? { ...m, deleted: true } : m
+        )
       );
       setSelectedIds([]);
       setMultiSelectMode(false);
-      setShowMenu(false);
-      if (selectedMessage && selectedIds.includes(selectedMessage._id))
-        setSelectedMessage(null);
+      Swal.fire("Moved!", "Selected messages moved to trash.", "success");
     } catch (err) {
-      console.error("Failed to delete selected messages:", err);
+      console.error(err);
     }
   };
 
-  // Restore multiple selected messages
   const restoreSelected = async () => {
+    const confirm = await Swal.fire({
+      title: "Restore selected?",
+      text: `${selectedIds.length} message(s) will be restored.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, restore",
+    });
+    if (!confirm.isConfirmed) return;
     try {
       await Promise.all(selectedIds.map((id) => api.restoreMessage(id)));
       setMessages((prev) =>
-        prev.map((m) => (selectedIds.includes(m._id) ? { ...m, deleted: false } : m))
+        prev.map((m) =>
+          selectedIds.includes(m._id) ? { ...m, deleted: false } : m
+        )
       );
       setSelectedIds([]);
       setMultiSelectMode(false);
-      setShowMenu(false);
+      Swal.fire("Restored!", "Selected messages restored.", "success");
     } catch (err) {
-      console.error("Failed to restore selected messages:", err);
+      console.error(err);
     }
   };
 
-  const visibleMessages = messages.filter((m) => (showTrash ? m.deleted : !m.deleted));
-  const unreadCount = messages.filter((m) => !m.read && !m.deleted).length;
-  const readCount = messages.filter((m) => m.read && !m.deleted).length;
+  const deleteSelectedPermanently = async () => {
+    const confirm = await Swal.fire({
+      title: "Delete selected permanently?",
+      text: `${selectedIds.length} message(s) will be deleted forever!`,
+      icon: "error",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+      await Promise.all(selectedIds.map((id) => api.deleteMessage(id)));
+      setMessages((prev) => prev.filter((m) => !selectedIds.includes(m._id)));
+      setSelectedIds([]);
+      setMultiSelectMode(false);
+      Swal.fire("Deleted!", "Selected messages permanently deleted.", "success");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const visibleMessages = messages.filter((m) =>
+    showTrash ? m.deleted : !m.deleted
+  );
   const deletedCount = messages.filter((m) => m.deleted).length;
 
   return (
     <div className="flex h-[85vh] max-w-6xl mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200">
       {/* Sidebar */}
       <div className="w-1/3 border-r bg-gray-50 flex flex-col">
-        {/* Top toolbar */}
         <div className="p-4 border-b bg-gray-100 flex justify-around items-center">
-          {/* Trash icon */}
           <div
             className="relative flex flex-col items-center cursor-pointer"
             onClick={() => {
@@ -157,83 +235,73 @@ function InboxDashboard() {
             <span className="text-xs text-gray-700 mt-1">Trash</span>
           </div>
 
-          {/* Delete single message */}
           <div
             className="relative flex flex-col items-center cursor-pointer"
             onClick={deleteSingle}
           >
             <Trash2 className="w-6 h-6 text-gray-600 hover:text-gray-900" />
-            {selectedMessage && !showTrash && (
-              <span className="absolute -top-2 -right-2 bg-gray-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                1
-              </span>
-            )}
             <span className="text-xs text-gray-700 mt-1">Delete</span>
           </div>
 
-          {/* Three dots menu */}
           <div className="relative flex flex-col items-center">
             <button onClick={() => setShowMenu((prev) => !prev)}>
               <MoreVertical className="w-6 h-6 text-gray-700 hover:text-gray-900" />
             </button>
             {showMenu && (
-              <div className="absolute top-7 right-0 bg-white border shadow-lg rounded-md z-50 flex flex-col w-44">
+              <div className="absolute top-7 right-0 bg-white border shadow-lg rounded-md z-50 flex flex-col w-52">
                 <button
                   className="px-4 py-2 text-left hover:bg-gray-100"
                   onClick={() => {
                     setMultiSelectMode((prev) => !prev);
-                    setShowMenu(false); // close menu after action
+                    setShowMenu(false);
                   }}
                 >
                   {multiSelectMode ? "Cancel Multi-select" : "Multi-select"}
                 </button>
-                {multiSelectMode && !showTrash && (
+
+                {!showTrash && multiSelectMode && (
                   <button
                     className={`px-4 py-2 text-left hover:bg-gray-100 ${
-                      selectedIds.length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                      selectedIds.length === 0
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
                     }`}
-                    onClick={() => {
-                      if (selectedIds.length > 0) deleteSelected();
-                      setShowMenu(false); // close menu
-                    }}
+                    onClick={deleteSelected}
                   >
                     Delete Selected
                   </button>
                 )}
-                {multiSelectMode && showTrash && (
-                  <button
-                    className={`px-4 py-2 text-left hover:bg-gray-100 ${
-                      selectedIds.length === 0 ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    onClick={() => {
-                      if (selectedIds.length > 0) restoreSelected();
-                      setShowMenu(false); // close menu
-                    }}
-                  >
-                    Restore Selected
-                  </button>
+
+                {showTrash && multiSelectMode && (
+                  <>
+                    <button
+                      className={`px-4 py-2 text-left hover:bg-gray-100 ${
+                        selectedIds.length === 0
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                      onClick={restoreSelected}
+                    >
+                      Restore Selected
+                    </button>
+
+                    <button
+                      className={`px-4 py-2 text-left text-red-600 hover:bg-red-100 ${
+                        selectedIds.length === 0
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                      onClick={deleteSelectedPermanently}
+                    >
+                      Delete Selected Permanently
+                    </button>
+                  </>
                 )}
               </div>
-            )}
-            {multiSelectMode && selectedIds.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {selectedIds.length}
-              </span>
-            )}
-          </div>
-
-          {/* Read/Unread counts */}
-          <div className="flex flex-col items-center relative">
-            <span className="text-xs text-gray-700 mt-1">Read/Unread</span>
-            {unreadCount + readCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadCount}/{readCount}
-              </span>
             )}
           </div>
         </div>
 
-        {/* Back button for Trash */}
         {showTrash && (
           <div
             className="p-2 border-b bg-gray-50 flex items-center cursor-pointer hover:bg-gray-100"
@@ -265,28 +333,33 @@ function InboxDashboard() {
               >
                 <div className="flex-1" onClick={() => openMessage(msg)}>
                   <div className="flex justify-between items-center">
-                    <p
-                      className={`font-medium ${
-                        msg.read ? "text-gray-700" : "text-green-700 font-semibold"
-                      }`}
-                    >
-                      {msg.name}
-                    </p>
                     <div className="flex items-center gap-2">
-                      {!msg.read && msg.new && !showTrash && (
-                        <span className="px-2 py-0.5 text-xs font-bold text-white bg-blue-600 rounded-full">
-                          New
-                        </span>
-                      )}
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
+                      <p
+                        className={`font-medium ${
                           msg.read
-                            ? "bg-green-200 text-green-800"
-                            : "bg-red-200 text-red-800"
+                            ? "text-gray-700"
+                            : "text-green-700 font-semibold"
                         }`}
                       >
-                        {msg.read ? "Read" : "Unread"}
-                      </span>
+                        {msg.name}
+                      </p>
+
+                      {/* ✅ Badges */}
+                      {!msg.read && (
+                        <>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-200 text-green-800">
+                            New
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-200 text-red-800">
+                            Unread
+                          </span>
+                        </>
+                      )}
+                      {msg.read && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-gray-200 text-gray-700">
+                          Read
+                        </span>
+                      )}
                     </div>
                   </div>
                   <p
@@ -309,7 +382,6 @@ function InboxDashboard() {
                   )}
                 </div>
 
-                {/* Trash panel actions */}
                 {showTrash && (
                   <div className="flex gap-2 ml-2">
                     <button onClick={() => restoreSingle(msg._id)}>
@@ -330,7 +402,7 @@ function InboxDashboard() {
       <div className="flex-1 p-8 bg-white overflow-y-auto relative">
         {selectedMessage && !showTrash ? (
           <>
-            <div className="mb-4">
+            <div className="flex justify-between items-center mb-4">
               <button
                 onClick={() => setSelectedMessage(null)}
                 className="flex items-center px-3 py-1 bg-gray-100 rounded-lg hover:bg-gray-200"
@@ -338,7 +410,16 @@ function InboxDashboard() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
               </button>
+
+              <button
+                onClick={() => markAsUnread(selectedMessage._id)}
+                className="flex items-center gap-1 text-sm px-3 py-1 bg-yellow-100 rounded-lg text-yellow-800 hover:bg-yellow-200"
+              >
+                <MailX className="w-4 h-4" />
+                Mark Unread
+              </button>
             </div>
+
             <div className="flex justify-between items-start mb-4 border-b pb-3">
               <div>
                 <h3 className="text-2xl font-semibold text-gray-800">
@@ -357,8 +438,8 @@ function InboxDashboard() {
         ) : (
           <div className="text-gray-400 text-center mt-40 text-lg">
             {showTrash
-              ? " Recently Deleted Messages"
-              : " Select a message from the left panel to read it"}
+              ? "Recently Deleted Messages"
+              : "Select a message from the left panel to read it"}
           </div>
         )}
       </div>
@@ -366,4 +447,4 @@ function InboxDashboard() {
   );
 }
 
-export default InboxDashboard;
+export default ContactDashboard;
