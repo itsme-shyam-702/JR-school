@@ -1,0 +1,658 @@
+hey i guve you al backend codes once correct it and fix missings .... backend/config/db.js......import { clerkClient } from "@clerk/clerk-sdk-node";
+
+export const requireAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+
+    const session = await clerkClient.sessions.verifySession(token);
+
+    if (!session?.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    req.userId = session.userId;
+
+    next();
+  } catch (err) {
+    console.error("Auth failed:", err);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+};
+
+export const requireRole = (role) => {
+  return async (req, res, next) => {
+    try {
+      const user = await clerkClient.users.getUser(req.userId);
+
+      const userRole = user.privateMetadata.role;
+
+      if (userRole !== role) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      next();
+    } catch (err) {
+      console.error("Role check failed:", err);
+      return res.status(403).json({ message: "Forbidden" });
+    }
+  };
+};.......... /controllers/eventController.js...  import Event from "../models/eventModel.js";
+
+export const addEvent = async (req, res) => {
+  try {
+    const { title, description, date } = req.body;
+    const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const event = await Event.create({ title, description, date, filePath });
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getEvents = async (req, res) => {
+  const events = await Event.find({ isDeleted: false }).sort({ date: -1 });
+  res.json(events);
+};
+
+export const getDeletedEvents = async (req, res) => {
+  const events = await Event.find({ isDeleted: true });
+  res.json(events);
+};
+
+export const softDeleteEvent = async (req, res) => {
+  await Event.findByIdAndUpdate(req.params.id, { isDeleted: true });
+  res.json({ message: "Event soft deleted" });
+};
+
+export const restoreEvent = async (req, res) => {
+  await Event.findByIdAndUpdate(req.params.id, { isDeleted: false });
+  res.json({ message: "Event restored" });
+};
+
+export const deleteEvent = async (req, res) => {
+  await Event.findByIdAndDelete(req.params.id);
+  res.json({ message: "Event permanently deleted" });
+}; ....... galleryController.js...........import Gallery from "../models/Gallery.js";
+import path from "path";
+import fs from "fs";
+
+// Add new image
+export const addImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "File is required" });
+
+    const newImage = await Gallery.create({
+      title: req.body.title || "Untitled",
+      description: req.body.description || "",
+      filePath: `/uploads/${req.file.filename}`,
+    });
+
+    res.status(201).json(newImage);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get all non-deleted images
+export const getAllImages = async (req, res) => {
+  try {
+    const images = await Gallery.find({ deleted: false }).sort({ createdAt: -1 });
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Get deleted images
+export const getDeletedImages = async (req, res) => {
+  try {
+    const images = await Gallery.find({ deleted: true }).sort({ createdAt: -1 });
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Soft delete image
+export const softDeleteImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Gallery.findByIdAndUpdate(id, { deleted: true });
+    res.json({ message: "Deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Restore image
+export const restoreImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Gallery.findByIdAndUpdate(id, { deleted: false });
+    res.json({ message: "Restored successfully" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Permanent delete
+export const permanentDeleteImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const image = await Gallery.findById(id);
+    if (!image) return res.status(404).json({ message: "Image not found" });
+
+    // Delete file from server
+    const filePath = path.join("uploads", path.basename(image.filePath));
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    await image.deleteOne();
+    res.json({ message: "Permanently deleted" });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+......... /middleware/auth.js.. import { clerkClient } from "@clerk/clerk-sdk-node";
+
+export const requireAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+
+    const session = await clerkClient.sessions.verifySession(token);
+
+    if (!session?.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    req.userId = session.userId;
+
+    next();
+  } catch (err) {
+    console.error("Auth failed:", err);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+};
+
+export const requireRole = (role) => {
+  return async (req, res, next) => {
+    try {
+      const user = await clerkClient.users.getUser(req.userId);
+
+      const userRole = user.privateMetadata.role;
+
+      if (userRole !== role) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      next();
+    } catch (err) {
+      console.error("Role check failed:", err);
+      return res.status(403).json({ message: "Forbidden" });
+    }
+  };
+};
+........ /models/Admission.js...import mongoose from "mongoose"; 
+
+const admissionSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  selectedClass: { type: String, required: true },
+  dob: { type: Date, required: true },
+  parentName: { type: String, required: true },
+  contact: { type: String, required: true },
+  address: { type: String, required: true },
+}, { timestamps: true });
+
+const Admission = mongoose.model("Admission", admissionSchema);
+export default Admission;
+...... Contact.js...import mongoose from "mongoose";
+
+const contactSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    message: { type: String, required: true },
+    read: { type: Boolean, default: false },
+    deleted: { type: Boolean, default: false },
+  },
+  { timestamps: true } // adds createdAt & updatedAt
+);
+
+const Contact = mongoose.model("Contact", contactSchema);
+export default Contact; ............ Event.js.... import mongoose from "mongoose";
+
+const eventSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  date: { type: Date, required: true },
+  filePath: String,
+  fileType: String,
+  deleted: { type: Boolean, default: false },
+});
+
+export default mongoose.model("Event", eventSchema);
+.... Gallery.js... import mongoose from "mongoose";
+
+const gallerySchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  filePath: String,
+  fileType: String,
+  deleted: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+
+export default mongoose.model("Gallery", gallerySchema);
+.......... routes/admissions.js.....  import express from "express";
+import Admission from "../models/Admission.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
+
+const router = express.Router();
+
+// ✅ Validation helper
+const validateFields = (fields) => {
+  return Object.values(fields).every((value) => value && value.trim() !== "");
+};
+
+// 📩 Submit a new admission
+router.post(
+  "/",
+  requireAuth,
+  requireRole(["visitor", "staff", "admin"]),
+  async (req, res) => {
+    try {
+      const { name, selectedClass, dob, parentName, contact, address } = req.body;
+
+      // ✅ Validate fields
+      if (
+        !validateFields({
+          name,
+          selectedClass,
+          dob,
+          parentName,
+          contact,
+          address,
+        })
+      ) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // ✅ Create new admission
+      const newAdmission = new Admission({
+        name,
+        selectedClass,
+        dob,
+        parentName,
+        contact,
+        address,
+      });
+
+      await newAdmission.save();
+
+      res.status(201).json({ message: "Admission submitted successfully!" });
+    } catch (err) {
+      console.error("❌ Error submitting admission:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// 📜 Get all admissions
+router.get(
+  "/",
+  requireAuth,
+  requireRole(["staff", "admin"]),
+  async (req, res) => {
+    try {
+      const admissions = await Admission.find().sort({ createdAt: -1 });
+      res.status(200).json(admissions);
+    } catch (err) {
+      console.error("❌ Error fetching admissions:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// 🗑️ Delete admission
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole(["staff", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const deletedAdmission = await Admission.findByIdAndDelete(id);
+
+      if (!deletedAdmission) {
+        return res.status(404).json({ message: "Admission not found" });
+      }
+
+      res.status(200).json({ message: "Admission deleted successfully!" });
+    } catch (err) {
+      console.error("❌ Error deleting admission:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+export default router;
+......... contactRoutes.js......import express from "express";
+import Admission from "../models/Admission.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
+
+const router = express.Router();
+
+// ✅ Validation helper
+const validateFields = (fields) => {
+  return Object.values(fields).every((value) => value && value.trim() !== "");
+};
+
+// 📩 Submit a new admission
+router.post(
+  "/",
+  requireAuth,
+  requireRole(["visitor", "staff", "admin"]),
+  async (req, res) => {
+    try {
+      const { name, selectedClass, dob, parentName, contact, address } = req.body;
+
+      // ✅ Validate fields
+      if (
+        !validateFields({
+          name,
+          selectedClass,
+          dob,
+          parentName,
+          contact,
+          address,
+        })
+      ) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // ✅ Create new admission
+      const newAdmission = new Admission({
+        name,
+        selectedClass,
+        dob,
+        parentName,
+        contact,
+        address,
+      });
+
+      await newAdmission.save();
+
+      res.status(201).json({ message: "Admission submitted successfully!" });
+    } catch (err) {
+      console.error("❌ Error submitting admission:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// 📜 Get all admissions
+router.get(
+  "/",
+  requireAuth,
+  requireRole(["staff", "admin"]),
+  async (req, res) => {
+    try {
+      const admissions = await Admission.find().sort({ createdAt: -1 });
+      res.status(200).json(admissions);
+    } catch (err) {
+      console.error("❌ Error fetching admissions:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// 🗑️ Delete admission
+router.delete(
+  "/:id",
+  requireAuth,
+  requireRole(["staff", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const deletedAdmission = await Admission.findByIdAndDelete(id);
+
+      if (!deletedAdmission) {
+        return res.status(404).json({ message: "Admission not found" });
+      }
+
+      res.status(200).json({ message: "Admission deleted successfully!" });
+    } catch (err) {
+      console.error("❌ Error deleting admission:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+export default router;
+......... eventRoutes.js......import express from "express";
+import multer from "multer";
+import path from "path";
+import Event from "../models/Event.js";
+import { requireAuth, requireRole } from "../middleware/auth.js"; // import auth middleware
+
+const router = express.Router();
+
+// File storage config
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+// ✅ GET active events (any authenticated user)
+router.get("/", requireAuth, requireRole(["visitor", "staff", "admin"]), async (req, res) => {
+  const events = await Event.find({ deleted: false }).sort({ date: -1 });
+  res.json(events);
+});
+
+// ✅ GET deleted events (staff & admin only)
+router.get("/deleted", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  const events = await Event.find({ deleted: true }).sort({ date: -1 });
+  res.json(events);
+});
+
+// ✅ POST add new event (staff & admin only)
+router.post("/", requireAuth, requireRole(["staff", "admin"]), upload.single("file"), async (req, res) => {
+  try {
+    const { title, description, date } = req.body;
+    let filePath = "";
+    let fileType = "";
+
+    if (req.file) {
+      filePath = `/uploads/${req.file.filename}`;
+      fileType = req.file.mimetype.split("/")[0];
+    }
+
+    const event = await Event.create({
+      title,
+      description,
+      date,
+      filePath,
+      fileType,
+    });
+
+    res.status(201).json(event);
+  } catch (err) {
+    console.error("Error adding event:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ PATCH soft delete (staff & admin only)
+router.patch("/delete/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Event.findByIdAndUpdate(req.params.id, { deleted: true });
+  res.json({ message: "Event moved to deleted" });
+});
+
+// ✅ PATCH restore event (staff & admin only)
+router.patch("/restore/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Event.findByIdAndUpdate(req.params.id, { deleted: false });
+  res.json({ message: "Event restored" });
+});
+
+// ✅ DELETE permanent delete (staff & admin only)
+router.delete("/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Event.findByIdAndDelete(req.params.id);
+  res.json({ message: "Event permanently deleted" });
+});
+
+export default router;
+......... gallery.js.....import express from "express";
+import multer from "multer";
+import path from "path";
+import Gallery from "../models/Gallery.js";
+import { requireAuth, requireRole } from "../middleware/auth.js"; // import auth middleware
+
+const router = express.Router();
+
+// File storage setup
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+// ✅ Get all gallery images (active) – all authenticated users
+router.get("/", requireAuth, requireRole(["visitor", "staff", "admin"]), async (req, res) => {
+  try {
+    const images = await Gallery.find({ deleted: false }).sort({ createdAt: -1 });
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Get deleted images – staff & admin only
+router.get("/deleted", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  try {
+    const deletedImages = await Gallery.find({ deleted: true }).sort({ createdAt: -1 });
+    res.json(deletedImages);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Upload new image – staff & admin only
+router.post("/", requireAuth, requireRole(["staff", "admin"]), upload.single("file"), async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    let filePath = "";
+    let fileType = "";
+
+    if (req.file) {
+      filePath = `/uploads/${req.file.filename}`;
+      fileType = req.file.mimetype.split("/")[0];
+    }
+
+    const newImage = await Gallery.create({
+      title,
+      description,
+      filePath,
+      fileType,
+    });
+
+    res.status(201).json(newImage);
+  } catch (err) {
+    console.error("Error uploading image:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ✅ Soft delete – staff & admin only
+router.patch("/delete/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Gallery.findByIdAndUpdate(req.params.id, { deleted: true });
+  res.json({ message: "Image moved to deleted" });
+});
+
+// ✅ Restore image – staff & admin only
+router.patch("/restore/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Gallery.findByIdAndUpdate(req.params.id, { deleted: false });
+  res.json({ message: "Image restored" });
+});
+
+// ✅ Permanently delete – staff & admin only
+router.delete("/:id", requireAuth, requireRole(["staff", "admin"]), async (req, res) => {
+  await Gallery.findByIdAndDelete(req.params.id);
+  res.json({ message: "Image permanently deleted" });
+});
+
+export default router;
+........ server.js......import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
+
+import connectDB from "./config/db.js";
+import eventRoutes from "./routes/eventRoutes.js";
+import galleryRoutes from "./routes/gallery.js";
+import admissionRoutes from "./routes/admissions.js";
+import contactRoutes from "./routes/contactRoutes.js";
+
+import { requireAuth } from "./middleware/auth.js"; // auth middleware
+
+dotenv.config();
+connectDB();
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Static path for uploads
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ----------------------------
+// API Routes with optional global auth
+app.use("/api/admission", admissionRoutes); // per-route auth handled inside
+app.use("/api/gallery", galleryRoutes);     // can protect routes inside
+app.use("/api/events", eventRoutes);
+app.use("/api/contact", contactRoutes);
+
+// ----------------------------
+// Serve frontend in production
+if (process.env.NODE_ENV === "production") {
+  const frontendBuildPath = path.join(__dirname, "../frontend/build");
+  app.use(express.static(frontendBuildPath));
+
+  // Regex-based catch-all route to fix refresh issues
+  app.get(/.*/, function (_req, res) {
+    res.sendFile(path.join(frontendBuildPath, "index.html"));
+  });
+} else {
+  // Test route for development
+  app.get("/", (_req, res) => res.send("Server is running"));
+}
+
+// ----------------------------
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+......... i these files i added the roles based accessibility is there any chnages you cange and give me full codes only no  more explamations give me the corrected code for suitable frontend 
